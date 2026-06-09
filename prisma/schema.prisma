@@ -1,0 +1,414 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int                  @id @default(autoincrement())
+  email           String               @unique
+  password        String?
+  name            String
+  age             Int?
+  role            String               @default("student")
+  isVerified      Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  lastLogin       DateTime             @default(now())
+  phone           BigInt?
+  gender          String?
+  isActive        Boolean              @default(true)
+  planId          Int?                 @map("plan_id")
+  token           Token?
+  plan            SubscriptionPlan?    @relation(fields: [planId], references: [id])
+  payments        PaymentDetail[]
+  academicProfile UserAcademicProfile?
+  userInfo        UserInfo?
+  assignedTests   Test[]               @relation("AssignedTests")
+  testResults     TestResult[]
+  enrollments     Enrollment[]
+}
+
+model UserInfo {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique @map("user_id")
+  state      String?
+  district   String?
+  pincode    Int?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  profilepic String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_info")
+}
+
+model Token {
+  id                Int       @id @default(autoincrement())
+  userId            Int       @unique
+  otp               String?
+  otpExpires        DateTime?
+  resetToken        String?
+  resetTokenExpires DateTime?
+  createdAt         DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SubscriptionPlan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       String
+  cycle       String
+  description String
+  features    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+}
+
+model Category {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  createdAt        DateTime              @default(now())
+  syllabi          ExamSyllabus[]
+  subjectSyllabi   SubjectSyllabus[]
+  terms            Term[]
+  academicProfiles UserAcademicProfile[]
+  boards           Board[]               @relation("BoardToCategory")
+  exams            Exam[]                @relation("CategoryToExam")
+  streams          Stream[]              @relation("CategoryToStream")
+  tests            Test[]
+  enrollments      Enrollment[]
+}
+
+model Board {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  createdAt        DateTime              @default(now())
+  states           state[]
+  subjectSyllabi   SubjectSyllabus[]
+  terms            Term[]
+  academicProfiles UserAcademicProfile[]
+  categories       Category[]            @relation("BoardToCategory")
+  streams          Stream[]              @relation("BoardToStream")
+  enrollments      Enrollment[]
+}
+
+model state {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  board_id         Int
+  createdAt        DateTime              @default(now())
+  mediums          Medium[]
+  board            Board                 @relation(fields: [board_id], references: [id], onDelete: Cascade)
+  subjectSyllabi   SubjectSyllabus[]
+  terms            Term[]
+  academicProfiles UserAcademicProfile[]
+  enrollments      Enrollment[]
+}
+
+model Medium {
+  id               Int                   @id @default(autoincrement())
+  name             String
+  stateId          Int                   @map("state_id")
+  createdAt        DateTime              @default(now())
+  state            state                 @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  subjectSyllabi   SubjectSyllabus[]
+  academicProfiles UserAcademicProfile[]
+  enrollments      Enrollment[]
+
+  @@map("medium")
+}
+
+model UserAcademicProfile {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique @map("user_id")
+  category    String?
+  board       String?
+  state       String?
+  medium      String?
+  exam        String?
+  mediumId    Int?      @map("medium_id")
+  schoolName  String?   @map("school_name")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  stream      String?
+  termId      Int?      @map("term_id")
+  boardRel    Board?    @relation(fields: [board], references: [name])
+  categoryRel Category? @relation(fields: [category], references: [name])
+  examRel     Exam?     @relation(fields: [exam], references: [name])
+  mediumRel   Medium?   @relation(fields: [mediumId], references: [id])
+  stateRel    state?    @relation(fields: [state], references: [name])
+  streamRel   Stream?   @relation(fields: [stream], references: [name])
+  termRel     Term?     @relation(fields: [termId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_academic_profile")
+}
+
+model Exam {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  createdAt        DateTime              @default(now())
+  syllabi          ExamSyllabus[]
+  academicProfiles UserAcademicProfile[]
+  categories       Category[]            @relation("CategoryToExam")
+  enrollments      Enrollment[]
+}
+
+model ExamSyllabus {
+  id            Int       @id @default(autoincrement())
+  examId        Int       @map("exam_id")
+  filePath      String    @map("file_path")
+  fileName      String    @map("file_name")
+  createdAt     DateTime  @default(now())
+  category      String?   @map("category_name")
+  categoryRel   Category? @relation(fields: [category], references: [name])
+  exam          Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  embedded      String?   @map("embedded_path")
+  originalFile  String?   @map("original_file")
+  chapters      Json?     @map("chapters")
+
+  @@map("exam_syllabus")
+}
+
+model Stream {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  createdAt        DateTime              @default(now())
+  subjectSyllabi   SubjectSyllabus[]
+  academicProfiles UserAcademicProfile[]
+  boards           Board[]               @relation("BoardToStream")
+  categories       Category[]            @relation("CategoryToStream")
+  enrollments      Enrollment[]
+}
+
+model SubjectSyllabus {
+  id            Int      @id @default(autoincrement())
+  category      String   @map("category_name")
+  board         String   @map("board_name")
+  state         String?  @map("state_name")
+  medium        String?  @map("medium_name")
+  stream        String?  @map("stream_name")
+  mediumId      Int?     @map("medium_id")
+  filePath      String   @map("file_path")
+  fileName      String   @map("file_name")
+  createdAt     DateTime @default(now())
+  subjectName   String   @map("subject_name")
+  termId        Int?     @map("term_id")
+  boardRel      Board    @relation(fields: [board], references: [name])
+  categoryRel   Category @relation(fields: [category], references: [name])
+  mediumRel     Medium?  @relation(fields: [mediumId], references: [id])
+  stateRel      state?   @relation(fields: [state], references: [name])
+  streamRel     Stream?  @relation(fields: [stream], references: [name])
+  termRel       Term?    @relation(fields: [termId], references: [id])
+  embedded      String?  @map("embedded_path")
+  originalFile  String?  @map("original_file")
+  chapters      Json?    @map("chapters")
+
+  @@map("subject_syllabus")
+}
+
+model PaymentDetail {
+  id            Int      @id @default(autoincrement())
+  transactionId String   @unique @map("transaction_id")
+  userName      String   @map("user_name")
+  amount        Float
+  date          DateTime @default(now()) @map("date")
+  method        String
+  status        String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  planName      String?  @map("plan_name")
+  userId        Int?     @map("user_id")
+  user          User?    @relation(fields: [userId], references: [id])
+
+  @@map("payment_details")
+}
+
+model Term {
+  id               Int                   @id @default(autoincrement())
+  termName         String                @map("term_name")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  category         String?               @map("category_name")
+  state            String?               @map("state_name")
+  board            String?               @map("board_name")
+  subjectSyllabi   SubjectSyllabus[]
+  boardRel         Board?                @relation(fields: [board], references: [name])
+  categoryRel      Category?             @relation(fields: [category], references: [name])
+  stateRel         state?                @relation(fields: [state], references: [name])
+  academicProfiles UserAcademicProfile[]
+
+  @@unique([termName, category, board, state])
+  @@map("term")
+}
+
+model Test {
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String?
+  aiModel      String    @map("ai_model")
+  topic        String?
+  difficulty   String?
+  category     String?   @map("category_name")
+  categoryRel  Category? @relation(fields: [category], references: [name])
+  assignedTo   Int       @map("assigned_to")
+  type         TestType
+  questionsUrl String    @map("questions_url")
+  totalMarks   Int       @map("total_marks")
+  passingMarks Int       @map("passing_marks")
+  duration     Int
+  dueDate      DateTime? @map("due_date")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  assignedUser User         @relation("AssignedTests", fields: [assignedTo], references: [id])
+  results      TestResult[]
+
+  @@index([assignedTo])
+  @@index([category])
+  @@index([topic])
+  @@map("test")
+}
+
+model TestResult {
+  id          Int              @id @default(autoincrement())
+  testId      Int              @map("test_id")
+  studentId   Int              @map("student_id")
+  answersUrl  String?          @map("answers_url")
+  resultUrl   String?          @map("result_url")
+  status      TestResultStatus @default(NOT_STARTED)
+  totalScore  Int?             @map("total_score")
+  percentage  Float?
+  isPassed    Boolean?         @map("is_passed")
+  aiModel     String?          @map("ai_model")
+  submittedAt DateTime?        @map("submitted_at")
+  evaluatedAt DateTime?        @map("evaluated_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  test    Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id])
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("test_result")
+}
+
+enum TestType {
+  MULTIPLE_CHOICE
+  HANDWRITTEN
+  MIXED
+}
+
+enum TestResultStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  EVALUATING
+  COMPLETED
+  FAILED_EVALUATION
+}
+
+model Enrollment {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  category   String?  @map("category_name")
+  board      String?  @map("board_name")
+  state      String?  @map("state_name")
+  medium     String?  @map("medium_name")
+  stream     String?  @map("stream_name")
+  exam       String?  @map("exam_name")
+  mediumId   Int?     @map("medium_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryRel Category? @relation(fields: [category], references: [name])
+  boardRel    Board?    @relation(fields: [board], references: [name])
+  stateRel    state?    @relation(fields: [state], references: [name])
+  mediumRel   Medium?   @relation(fields: [mediumId], references: [id])
+  streamRel   Stream?   @relation(fields: [stream], references: [name])
+  examRel     Exam?     @relation(fields: [exam], references: [name])
+
+  @@map("enrollment")
+}
+
+
+enum ContentNodeType {
+  EXAM
+  BOARD
+  CLASS
+  SUBJECT
+  CHAPTER
+  SUBTOPIC
+}
+
+model ContentNode {
+  id           Int               @id @default(autoincrement())
+  name         String
+  slug         String
+  type         ContentNodeType
+  parentId     Int?              @map("parent_id")
+  metadata     Json?             @default("{}")
+  orderIndex   Int               @default(0) @map("order_index")
+  isActive     Boolean           @default(true) @map("is_active")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  parent       ContentNode?      @relation("NodeHierarchy", fields: [parentId], references: [id])
+  children     ContentNode[]     @relation("NodeHierarchy")
+  lessonCaches LessonCache[]
+  progress     LessonProgress[]
+
+  @@unique([parentId, slug])
+  @@map("content_nodes")
+}
+
+model LessonCache {
+  id             Int         @id @default(autoincrement())
+  contentNodeId  Int         @map("content_node_id")
+  language       String      @default("en")
+  lessonText     String      @db.Text @map("lesson_text")
+  audioUrl       String?     @map("audio_url")
+  visualUrls     Json?       @map("visual_urls")
+  visualKeywords Json?       @map("visual_keywords")
+  keyPoints      Json?       @map("key_points")
+  status         String      @default("generated")
+  generatedAt    DateTime    @default(now()) @map("generated_at")
+
+  contentNode    ContentNode @relation(fields: [contentNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([contentNodeId, language])
+  @@map("lesson_cache")
+}
+
+model LessonProgress {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  contentNodeId Int         @map("content_node_id")
+  isCompleted   Boolean     @default(false) @map("is_completed")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  contentNode    ContentNode @relation(fields: [contentNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentNodeId])
+  @@map("lesson_progress")
+}
+
+model VoiceSample {
+  id        Int      @id @default(autoincrement())
+  voiceName String   @unique @map("voice_name")
+  gender    String
+  s3Path    String   @map("s3_path")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("voice_samples")
+}
+
